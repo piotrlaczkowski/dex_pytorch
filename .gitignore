@@ -1,0 +1,11 @@
+.DS_Store
+.mypy_cache
+.vscode
+*.csv
+models
+*.h5
+logs
+__pycache__
+CORE/mlruns
+CORE/.env
+.isort.cfg
