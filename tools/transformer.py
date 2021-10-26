@@ -70,21 +70,54 @@ class DateProcessor(BaseEstimator, TransformerMixin):
         self.columns = None
         # see https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
         self.time_transformations = [
-            ("day_sin", lambda x: np.sin(2 * np.pi * x.dt.day / 31)),
-            ("day_cos", lambda x: np.cos(2 * np.pi * x.dt.day / 31)),
-            ("dayofweek_sin", lambda x: np.sin(2 * np.pi * x.dt.dayofweek / 6)),
-            ("dayofweek_cos", lambda x: np.cos(2 * np.pi * x.dt.dayofweek / 6)),
-            ("month_sin", lambda x: np.sin(2 * np.pi * x.dt.month / 12)),
-            ("month_cos", lambda x: np.cos(2 * np.pi * x.dt.month / 12)),
-            ("year", lambda x: (x.dt.year - x.dt.year.min()) / (x.dt.year.max() - x.dt.year.min())),
+            ("day_sin", self._day_sin),
+            ("day_cos", self._day_cos),
+            ("dayofweek_sin", self._dayofweek_sin),
+            ("dayofweek_cos", self._dayofweek_cos),
+            ("month_sin", self._month_sin),
+            ("month_cos", self._month_cos),
+            ("year", self._year),
         ]
         if hours_secs:
             self.time_transformations = [
-                ("hour_sin", lambda x: np.sin(2 * np.pi * x.dt.hour / 23)),
-                ("hour_cos", lambda x: np.cos(2 * np.pi * x.dt.hour / 23)),
-                ("minute_sin", lambda x: np.sin(2 * np.pi * x.dt.minute / 59)),
-                ("minute_cos", lambda x: np.cos(2 * np.pi * x.dt.minute / 59)),
+                ("hour_sin", self._hour_sin),
+                ("hour_cos", self._hour_cos),
+                ("minute_sin", self._minute_sin),
+                ("minute_cos", self._minute_cos),
             ] + self.time_transformations
+
+    def _minute_sin(self, x):
+        return np.sin(2 * np.pi * x.dt.minute / 59)
+
+    def _minute_cos(self, x):
+        return np.cos(2 * np.pi * x.dt.minute / 59)
+
+    def _hour_sin(self, x):
+        return np.sin(2 * np.pi * x.dt.hour / 23)
+
+    def _hour_cos(self, x):
+        return np.cos(2 * np.pi * x.dt.hour / 23)
+
+    def _day_sin(self, x):
+        return np.sin(2 * np.pi * x.dt.day / 31)
+
+    def _day_cos(self, x):
+        return np.cos(2 * np.pi * x.dt.day / 31)
+
+    def _dayofweek_sin(self, x):
+        return np.sin(2 * np.pi * x.dt.dayofweek / 6)
+
+    def _dayofweek_cos(self, x):
+        return np.cos(2 * np.pi * x.dt.dayofweek / 6)
+
+    def _month_sin(self, x):
+        return np.sin(2 * np.pi * x.dt.month / 12)
+
+    def _month_cos(self, x):
+        return np.cos(2 * np.pi * x.dt.month / 12)
+
+    def _year(self, x):
+        return (x.dt.year - x.dt.year.min()) / (x.dt.year.max() - x.dt.year.min())
 
     def fit(self, X, y=None, **fit_params):
         self.columns = self.transform(X.iloc[0:1, :]).columns
@@ -151,12 +184,15 @@ class LEncoder(BaseEstimator, TransformerMixin):
 
         return self
 
+    def _get_dict_value(self, x, le_dict):
+        return le_dict.get(x, le_dict["_unk"])
+
     def transform(self, X, y=None, **fit_params):
         output = list()
         for col in range(X.shape[1]):
             col_name = X.columns[col]
             le_dict = self.encoders[col_name]
-            emb = X.iloc[:, col].fillna("_nan").apply(lambda x: le_dict.get(x, le_dict["_unk"])).values
+            emb = X.iloc[:, col].fillna("_nan").apply(self._get_dict_value, le_dict).values
             output.append(pd.Series(emb, name=col_name).astype(np.int32))
         return output
 
