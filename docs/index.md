@@ -1,8 +1,8 @@
-## Welcome to DEX 2.0 (Deep Learning Expert) documentations
+## Welcome to MaDNes 1.0 (Mixture Density Network for Bayesian Probabilistic Regression) documentation.
 
 #### Base model architecture for this branch:
 
-![alt text](../CORE/model.png "Dex Architecture")
+![alt text](../model_arch.png "MaDNes Architecture")
 
 ### Branches
 
@@ -18,12 +18,6 @@ We use GitHub actions to generate CI pipelines. Actually we have the following p
 - pushing master branch changes to all branches automatically
 ```
 
-### Inspecting the model
-
-```bash
-saved_model_cli show --dir /tmp/saved_model_dir --all
-```
-
 ## Data Preparation
 
 For the data cleaning part it is important to have:
@@ -32,6 +26,7 @@ For the data cleaning part it is important to have:
 - no NaNs
 - no Infs
 - dtypes corresponding to the ones in the TF
+- should we limit Price range
 
 ```python
 df.columns = df.columns.str.lower()

@@ -1,6 +1,7 @@
 .DS_Store
 .mypy_cache
 .vscode
+.pt_tmp
 *.csv
 models
 *.h5
@@ -9,3 +10,6 @@ __pycache__
 CORE/mlruns
 CORE/.env
 .isort.cfg
+lightning_logs
+models
+saved_models

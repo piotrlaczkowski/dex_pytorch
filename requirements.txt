@@ -1,6 +1,5 @@
-fastai==2.5.2
+"pytorch_tabular[all]"==0.5.1
 numpy
 pandas
-probflow[pytorch]
 pytorch-lightning==1.4.9
 torch==1.9.1

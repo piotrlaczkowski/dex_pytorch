@@ -37,7 +37,9 @@ class DexLightning(pl.LightningModule):
         logger.info(f"setting up embeddings for #{len(self.embedding_sizes)} columns with: {self.embedding_sizes}")
 
         # ====================== CAETGORICAL ======================
-        self.embeddings = nn.ModuleList([nn.Embedding(categories, size) for categories, size in self.embedding_sizes])
+        self.embeddings = nn.ModuleList(
+            [nn.Embedding(categories + 1, size) for categories, size in self.embedding_sizes]
+        )
         self.n_emb = sum(e.embedding_dim for e in self.embeddings)  # length of all embeddings combined
         logger.info(f"embeddings input total length: {self.n_emb}")
         self.total_input_len = self.n_emb + self.n_cont
@@ -70,23 +72,17 @@ class DexLightning(pl.LightningModule):
         """
         # inputs
         # logger.info(f"self.embeddings: {self.embeddings}")
-        logger.info(f"x_cat: {x_cat.shape}")
         ## categorical
         emb_input = []
-        for idx, emb in enumerate(self.embeddings):
-            # logger.info(f"idx: {idx}")
-            # logger.info(f"data: {data}")
+        for idx, emb_layer in enumerate(self.embeddings):
+            logger.info(f"emb: {emb_layer}")
             logger.info(f"x_cat shape: {x_cat.shape}")
             try:
                 data = x_cat[:, idx]
-                _emb = emb(data)
+                emb_input.append(emb_layer(data))
+                logger.info(f"Embeddings idx: {idx} OK !!!")
             except Exception as err:
                 logger.error(f"ERROR idx: {idx}: {err}")
-                logger.error(f"x_cat: {x_cat}")
-                logger.error(f"x_cat[:, idx]: {x_cat[:, idx]}")
-                emb_input.append(_emb)
-                break
-            logger.info(f"Embeddings idx: {idx} OK !!!")
 
         # x = [e(x_cat[:,i]) for i, e in enumerate(self.embeddings)]
         # x = torch.cat(x, 1)
@@ -99,13 +95,13 @@ class DexLightning(pl.LightningModule):
         x2 = self.bn_num(x_cont)
         logger.info(f"x 84 shape: {x.shape}")
         x = torch.cat([x, x2], 1)
-        logger.info(f"x 86 shape: {x.shape}")
+        logger.info(f"x 100 shape: {x.shape}")
 
         # first layer
         x = self.lin1(x)
-        logger.info(f"x 91 shape: {x.shape}")
+        logger.info(f"x 104 shape: {x.shape}")
         x = F.relu(x)
-        logger.info(f"x 93 shape: {x.shape}")
+        logger.info(f"x 106 shape: {x.shape}")
         x = self.drop1(x)
         x = self.bn1(x)
         # second layer

@@ -6,8 +6,10 @@ authors = ["Piotr Laczkowski <piotr.laczkowski@vestiairecollective.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-torch = "^1.9.1"
-pytorch-lightning = "^1.4.9"
+torch = "~1.9.1"
+pytorch-lightning = "~1"
+pytorch_tabular = {extras = ["all"], version = "^0.7.0"}
+scikit-learn = "^1.0.1"
 
 [tool.poetry.dev-dependencies]
 
