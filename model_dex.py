@@ -4,9 +4,121 @@ import torch.nn.functional as F
 from loguru import logger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
-
+from pytorch_tabular.models import BaseModel
+from pytorch_tabular.config import DataConfig, OptimizerConfig, TrainerConfig, ExperimentConfig, ModelConfig
+from dataclasses import dataclass, field
+from omegaconf import DictConfig
 import config
+from typing import Dict, List, Tuple
 
+@dataclass
+class MyAwesomeModelConfig(ModelConfig):
+    use_batch_norm: bool = True
+    embedding_sizes: List[Tuple[int, int]] =  [(10, 100) for col_name in config.categorical_cols]
+    nr_continious: int = 0
+    dropouts: float = 0.3
+    layers_size: Tuple[int] =  (256, 128, 64, 1)
+
+class MyAwesomeRegressionModel(BaseModel):
+    def __init__(
+        self,
+        config: DictConfig,
+        **kwargs
+    ):
+        # Save any attribute that you need in _build_network before calling super()
+        # The embedding_dims will be available in the config object and after the super() call, it will be available in self.hparams
+        # self.embedding_cat_dim = sum([y for x, y in config.embedding_dims])
+        super().__init__(config, **kwargs)
+
+    def _build_network(self):
+        logger.info(f"setting up embeddings for #{len(self.hparams.embedding_sizes)} columns with: {self.hparams.embedding_sizes}")
+        # ====================== CAETGORICAL ======================
+        self.embeddings = nn.ModuleList(
+            [nn.Embedding(categories + 1, size) for categories, size in self.hparams.embedding_sizes]
+        )
+        self.n_emb = sum(e.embedding_dim for e in self.embeddings)  # length of all embeddings combined
+        logger.info(f"embeddings input total length: {self.n_emb}")
+
+        self.total_input_len = self.n_emb + self.hparams.nr_continious
+        logger.info(f"TOTAL INPUT length: {self.total_input_len}")
+
+        self.emb_drop = nn.Dropout(self.hparams.dropouts)
+
+        # ====================== NUMERICAL ======================
+        self.bn_num = nn.BatchNorm1d(self.hparams.nr_continioust)
+        # ====================== JOINED CORE ======================
+        # first layer
+        self.lin1 = nn.Linear(self.total_input_len, self.hparams.layers_size[0])
+        self.drop1 = nn.Dropout(self.hparams.dropouts)
+        self.bn1 = nn.BatchNorm1d(self.hparams.layers_size[0])
+        # second layer
+        self.lin2 = nn.Linear(self.hparams.layers_size[0], self.hparams.layers_size[1])
+        self.drop2 = nn.Dropout(self.hparams.dropouts)
+        self.bn2 = nn.BatchNorm1d(self.hparams.layers_size[1])
+        # output
+        self.lin3 = nn.Linear(self.hparams.layers_size[2], self.hparams.layers_size[3])
+
+    def forward(self, x: Dict):
+        continuous_data, categorical_data = x["continuous"], x["categorical"]
+
+        emb_input = []
+        for idx, emb_layer in enumerate(self.embeddings):
+            logger.info(f"emb: {emb_layer}")
+            logger.info(f"x_cat shape: {categorical_data.shape}")
+            try:
+                data = categorical_data[:, idx]
+                emb_input.append(emb_layer(data))
+                logger.info(f"Embeddings idx: {idx} OK !!!")
+            except Exception as err:
+                logger.error(f"ERROR idx: {idx}: {err}")
+
+        logger.info("Embeddings generation OK !!!")
+        x = torch.cat(emb_input, 1)
+        x = self.emb_drop(x)
+        ## numerical
+        x2 = self.bn_num(continuous_data)
+        x = torch.cat([x, x2], 1)
+
+        # first layer
+        x = self.lin1(x)
+        x = F.relu(x)
+        x = self.drop1(x)
+        x = self.bn1(x)
+        # second layer
+        x = F.relu(self.lin2(x))
+        x = self.drop2(x)
+        x = self.bn2(x)
+        # output
+        x = self.lin3(x)
+        return x
+
+
+        # # target_range is a parameter defined in the ModelConfig and will be available in the config
+        # if (
+        #     (self.hparams.task == "regression")
+        #     and (self.hparams.target_range is not None)
+        # ):
+        #     for i in range(self.hparams.output_dim):
+        #         y_min, y_max = self.hparams.target_range[i]
+        #         x[:, i] = y_min + nn.Sigmoid()(x[:, i]) * (y_max - y_min)
+        # return x
+
+    def training_step(self, batch, batch_idx):
+        x_cat, x_num, y = batch
+        y_hat = self(x_cat, x_num)
+        # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
+        loss = F.nll_loss(y_hat, y)
+        # logs metrics for each training_step,
+        # and the average across the epoch, to the progress bar and logger
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x_cat, x_num, y = batch
+        y_hat = self(x_cat, x_num)
+        # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
+        loss = F.nll_loss(y_hat, y)
+        self.log("val_loss", loss)
 
 class DexLightning(pl.LightningModule):
     """
@@ -99,9 +211,7 @@ class DexLightning(pl.LightningModule):
 
         # first layer
         x = self.lin1(x)
-        logger.info(f"x 104 shape: {x.shape}")
         x = F.relu(x)
-        logger.info(f"x 106 shape: {x.shape}")
         x = self.drop1(x)
         x = self.bn1(x)
         # second layer
