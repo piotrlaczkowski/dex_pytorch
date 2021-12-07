@@ -26,7 +26,7 @@ class DexModelConfig(ModelConfig):
 
         layers (str): Hyphen-separated number of layers and units in the classification head. eg. 32-64-32.
 
-        batch_norm_continuous_input (bool): If True, we will normalize the contiinuous layer by passing it through a BatchNorm layer
+        batch_norm_continuous_input (bool): If True, we will normalize the continuous layer by passing it through a BatchNorm layer
 
         activation (str): The activation type in the classification head.
             The default activation in PyTorch like ReLU, TanH, LeakyReLU, etc.
