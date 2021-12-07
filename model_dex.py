@@ -1,18 +1,15 @@
-
-from typing import Dict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 import pytorch_lightning as pl
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
-from omegaconf import DictConfig
-from pytorch_tabular.utils import _initialize_layers, _linear_dropout_bn
-from pytorch_tabular.models import BaseModel
+import torch.nn.functional as F
 from loguru import logger
-from dataclasses import dataclass, field
-from typing import List, Optional
-
+from omegaconf import DictConfig
 from pytorch_tabular.config import ModelConfig, _validate_choices
+from pytorch_tabular.models import BaseModel
+from pytorch_tabular.utils import _initialize_layers, _linear_dropout_bn
 
 
 @dataclass
@@ -50,15 +47,11 @@ class DexModelConfig(ModelConfig):
 
     layers: str = field(
         default="128-64-32",
-        metadata={
-            "help": "Hyphen-separated number of layers and units in the classification head. eg. 32-64-32."
-        },
+        metadata={"help": "Hyphen-separated number of layers and units in the classification head. eg. 32-64-32."},
     )
     batch_norm_continuous_input: bool = field(
         default=True,
-        metadata={
-            "help": "If True, we will normalize the contiinuous layer by passing it through a BatchNorm layer"
-        },
+        metadata={"help": "If True, we will normalize the contiinuous layer by passing it through a BatchNorm layer"},
     )
     activation: str = field(
         default="ReLU",
@@ -76,9 +69,7 @@ class DexModelConfig(ModelConfig):
     )
     use_batch_norm: bool = field(
         default=False,
-        metadata={
-            "help": "Flag to include a BatchNorm layer after each Linear Layer+DropOut"
-        },
+        metadata={"help": "Flag to include a BatchNorm layer after each Linear Layer+DropOut"},
     )
     initialization: str = field(
         default="kaiming",
@@ -132,6 +123,10 @@ class FeedForwardBackbone(pl.LightningModule):
 
 
 class DexModel(BaseModel):
+    """
+    Dynamic Regression Dex model.
+    """
+
     def __init__(self, config: DictConfig, **kwargs):
         # The concatenated output dim of the embedding layer
         self.embedding_cat_dim = sum([y for x, y in config.embedding_dims])
@@ -139,21 +134,17 @@ class DexModel(BaseModel):
 
     def _build_network(self):
         # Embedding layers
-        self.embedding_layers = nn.ModuleList(
-            [nn.Embedding(x, y) for x, y in self.hparams.embedding_dims]
-        )
+        self.embedding_layers = nn.ModuleList([nn.Embedding(x, y) for x, y in self.hparams.embedding_dims])
         # Continuous Layers
         if self.hparams.batch_norm_continuous_input:
-            self.normalizing_batch_norm = nn.BatchNorm1d(
-                self.hparams.continuous_dim)
+            self.normalizing_batch_norm = nn.BatchNorm1d(self.hparams.continuous_dim)
         # Backbone
         self.backbone = FeedForwardBackbone(self.hparams)
         # Adding the last layer
         self.output_layer = nn.Linear(
             self.backbone.output_dim, self.hparams.output_dim
         )  # output_dim auto-calculated from other config
-        _initialize_layers(self.hparams.activation,
-                           self.hparams.initialization, self.output_layer)
+        _initialize_layers(self.hparams.activation, self.hparams.initialization, self.output_layer)
 
     def unpack_input(self, x: Dict):
         continuous_data, categorical_data = x["continuous"], x["categorical"]
@@ -161,10 +152,7 @@ class DexModel(BaseModel):
             x = []
             # for i, embedding_layer in enumerate(self.embedding_layers):
             #     x.append(embedding_layer(categorical_data[:, i]))
-            x = [
-                embedding_layer(categorical_data[:, i])
-                for i, embedding_layer in enumerate(self.embedding_layers)
-            ]
+            x = [embedding_layer(categorical_data[:, i]) for i, embedding_layer in enumerate(self.embedding_layers)]
             x = torch.cat(x, 1)
 
         if self.hparams.continuous_dim != 0:
@@ -181,13 +169,10 @@ class DexModel(BaseModel):
         x = self.unpack_input(x)
         x = self.backbone(x)
         y_hat = self.output_layer(x)
-        if (self.hparams.task == "regression") and (
-            self.hparams.target_range is not None
-        ):
+        if (self.hparams.task == "regression") and (self.hparams.target_range is not None):
             for i in range(self.hparams.output_dim):
                 y_min, y_max = self.hparams.target_range[i]
-                y_hat[:, i] = y_min + nn.Sigmoid()(y_hat[:, i]) * \
-                    (y_max - y_min)
+                y_hat[:, i] = y_min + nn.Sigmoid()(y_hat[:, i]) * (y_max - y_min)
         return {"logits": y_hat, "backbone_features": x}
 
     def training_step(self, batch, batch_idx):
@@ -197,8 +182,7 @@ class DexModel(BaseModel):
         loss = F.poisson_nll_loss(y_hat, y)
         # logs metrics for each training_step,
         # and the average across the epoch, to the progress bar and logger
-        self.log("train_loss", loss, on_step=True,
-                 on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def test_step(self, batch, batch_idx):
