@@ -50,10 +50,12 @@ class DexModelConfig(ModelConfig):
          loss (Union[str, NoneType]): The loss function to be applied.
             By Default it is MSELoss for regression and CrossEntropyLoss for classification.
             Unless you are sure what you are doing, leave it at MSELoss or L1Loss for regression and CrossEntropyLoss for classification
+            (comes form the BaseModel init param: custom_loss)
 
         metrics (Union[List[str], NoneType]): the list of metrics you need to track during training.
             The metrics should be one of the metrics implemented in PyTorch Lightning.
             By default, it is Accuracy if classification and MeanSquaredLogError for regression
+            (comes form the BaseModel init param: custom_metrics)
 
         target_range (Union[List, NoneType]): The range in which we should limit the output variable. Currently ignored for multi-target regression
             Typically used for Regression problems. If left empty, will not apply any restrictions
@@ -206,26 +208,27 @@ class DexModel(BaseModel):
                 y_hat[:, i] = y_min + nn.Sigmoid()(y_hat[:, i]) * (y_max - y_min)
         return {"logits": y_hat, "backbone_features": x}
 
-    def training_step(self, batch, batch_idx):
-        y = batch["target"].squeeze()
-        y_hat = self(batch)["logits"]
-        # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
-        loss = F.poisson_nll_loss(y_hat, y)
-        # logs metrics for each training_step,
-        # and the average across the epoch, to the progress bar and logger
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
+    # def training_step(self, batch, batch_idx):
+    #     y = batch["target"].squeeze()
+    #     y_hat = self(batch)["logits"]
+    #     # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
+    #     loss = F.poisson_nll_loss(y_hat, y)
+    #     # logs metrics for each training_step,
+    #     # and the average across the epoch, to the progress bar and logger
+    #     self.log("train_loss", loss, on_step=True,
+    #              on_epoch=True, prog_bar=True, logger=True)
+    #     return loss
 
-    def test_step(self, batch, batch_idx):
-        y = batch["target"].squeeze()
-        y_hat = self(batch)["logits"]
-        loss = F.poisson_nll_loss(y_hat, y)
-        self.log("test_loss", loss)
-        return loss
+    # def test_step(self, batch, batch_idx):
+    #     y = batch["target"].squeeze()
+    #     y_hat = self(batch)["logits"]
+    #     loss = F.poisson_nll_loss(y_hat, y)
+    #     self.log("test_loss", loss)
+    #     return loss
 
-    def validation_step(self, batch, batch_idx):
-        y = batch["target"].squeeze()
-        y_hat = self(batch)["logits"]
-        # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
-        loss = F.poisson_nll_loss(y_hat, y)
-        self.log("valid_loss", loss)
+    # def validation_step(self, batch, batch_idx):
+    #     y = batch["target"].squeeze()
+    #     y_hat = self(batch)["logits"]
+    #     # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
+    #     loss = F.poisson_nll_loss(y_hat, y)
+    #     self.log("valid_loss", loss)
