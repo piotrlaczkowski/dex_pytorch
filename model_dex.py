@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+import probflow as pf
+import probflow.utils.ops as O
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+# import torch.nn.functional as F
 from loguru import logger
 from omegaconf import DictConfig
 from pytorch_tabular.config import ModelConfig, _validate_choices
@@ -172,12 +175,17 @@ class DexModel(BaseModel):
         # Backbone
         logger.info("building backbone")
         self.backbone = FeedForwardBackbone(self.hparams)
+
         # Adding the last layer
         logger.info(f"adding last layer, dims: {self.hparams.output_dim}")
         self.output_layer = nn.Linear(
             self.backbone.output_dim, self.hparams.output_dim
         )  # output_dim auto-calculated from other config
         _initialize_layers(self.hparams.activation, self.hparams.initialization, self.output_layer)
+
+        # adding bayesian mean and std nets
+        self.mean = pf.DenseNetwork([self.hparams.output_dim, 64, 32, 1])
+        self.std = pf.DenseNetwork([self.hparams.output_dim, 64, 32, 1])
 
     def unpack_input(self, x: Dict):
         continuous_data, categorical_data = x["continuous"], x["categorical"]
@@ -199,14 +207,17 @@ class DexModel(BaseModel):
         return x
 
     def forward(self, x: Dict):
+        # taking inspiration from the example: https://github.com/brendanhasz/probflow
         x = self.unpack_input(x)
-        x = self.backbone(x)
-        y_hat = self.output_layer(x)
-        if (self.hparams.task == "regression") and (self.hparams.target_range is not None):
-            for i in range(self.hparams.output_dim):
-                y_min, y_max = self.hparams.target_range[i]
-                y_hat[:, i] = y_min + nn.Sigmoid()(y_hat[:, i]) * (y_max - y_min)
-        return {"logits": y_hat, "backbone_features": x}
+        backbone_net = self.backbone(x)
+        backbone_net = torch.tensor(backbone_net)
+        z = torch.nn.ReLU(backbone_net)
+        return {"logits": pf.Normal(self.mean(z), torch.exp(self.std(z))), "backbone_features": backbone_net}
+
+        # probabilistic output
+        # x = torch.tensor(x)
+        # y_hat_dist = pf.Normal(self.backbone(x), self.s())
+        # return {"logits": y_hat_dist, "backbone_features": x}
 
     # def training_step(self, batch, batch_idx):
     #     y = batch["target"].squeeze()
@@ -232,3 +243,50 @@ class DexModel(BaseModel):
     #     # https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html#torch.nn.functional.nll_loss
     #     loss = F.poisson_nll_loss(y_hat, y)
     #     self.log("valid_loss", loss)
+
+
+class NeuralLinear(pf.ContinuousModel):
+    def __init__(self, dims):
+        self.net = pf.DenseNetwork(dims, probabilistic=False)
+        self.loc = pf.Dense(dims[-1], 1)
+        self.std = pf.Dense(dims[-1], 1)
+
+    def __call__(self, x):
+        loc = O.relu(self.net(x.float()))
+        return pf.Normal(self.loc(loc), O.softplus(self.std(loc)))
+
+
+class DenseRegression(pf.Model):
+    """
+    Playing with: https://probflow.readthedocs.io/en/latest/examples/fully_connected.html
+    Args:
+        pf ([type]): [description]
+    """
+
+    def __init__(self, d_in):
+        self.net = pf.Sequential(
+            [
+                pf.Dense(d_in, 32),
+                torch.nn.ReLU(),
+                # pf.Dense(512, 256),
+                # torch.nn.ReLU(),
+                # pf.Dense(256, 128),
+                # torch.nn.ReLU(),
+                # pf.Dense(128, 64),
+                # torch.nn.ReLU(),
+                # pf.Dense(64, 32),
+                # torch.nn.ReLU(),
+                pf.Dense(32, 16),
+                torch.nn.ReLU(),
+                pf.Dense(16, 1),
+                torch.nn.ReLU(),
+            ]
+        )
+        self.s = pf.ScaleParameter()
+
+    def __call__(self, x):
+        x = torch.tensor(x)
+        loc = O.relu(self.net(x.float()))
+        # return pf.Normal(loc, self.s())
+        dist = torch.distributions.log_normal.LogNormal(loc, self.s(), validate_args=None)
+        return dist

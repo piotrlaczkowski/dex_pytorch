@@ -184,6 +184,14 @@ python-versions = ">=3.6"
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
+name = "cloudpickle"
+version = "2.0.0"
+description = "Extended pickling support for Python objects"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
@@ -960,6 +968,27 @@ retrying = ">=1.3.3"
 six = "*"
 
 [[package]]
+name = "probflow"
+version = "2.4.1"
+description = "A Python package for building Bayesian models with TensorFlow or PyTorch"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+cloudpickle = ">=1.3"
+matplotlib = ">=3.1.0"
+numpy = ">=1.17.0"
+pandas = ">=0.25.0"
+
+[package.extras]
+dev = ["autoflake (>=1.4)", "black (>=19.10b0)", "bumpversion", "flake8 (>=3.8.3)", "isort (>=5.1.2)", "pytest (>=6.0.0rc1)", "pytest-cov (>=2.7.1)", "sphinx (>=3.1.2)", "sphinx-tabs (>=1.1.13)", "sphinx-rtd-theme (>=0.5.0)", "setuptools (>=49.1.0)", "twine (>=3.2.0)", "wheel (>=0.34.2)"]
+docs = ["tensorflow (>=2.2.0)", "tensorflow-probability (>=0.10.0)", "sphinx-tabs (>=1.1.13)"]
+pytorch = ["torch (>=1.5.0)"]
+tensorflow = ["tensorflow (>=2.2.0)", "tensorflow-probability (>=0.10.0)"]
+tensorflow_gpu = ["tensorflow-gpu (>=2.2.0)", "tensorflow-probability (>=0.10.0)"]
+
+[[package]]
 name = "prometheus-client"
 version = "0.12.0"
 description = "Python client for the Prometheus monitoring system."
@@ -1703,7 +1732,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.8"
-content-hash = "52575b81c3190062b947c22ef9ead5a023f07649c0d09add7c2ef522e03fb5be"
+content-hash = "7475714cad7e29cca1c988b24f8d3c046a82491ea50a9988f762dd103efab677"
 
 [metadata.files]
 absl-py = [
@@ -1895,6 +1924,10 @@ charset-normalizer = [
 click = [
     {file = "click-8.0.3-py3-none-any.whl", hash = "sha256:353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3"},
     {file = "click-8.0.3.tar.gz", hash = "sha256:410e932b050f5eed773c4cda94de75971c89cdb3155a72a0831139a79e5ecb5b"},
+]
+cloudpickle = [
+    {file = "cloudpickle-2.0.0-py3-none-any.whl", hash = "sha256:6b2df9741d06f43839a3275c4e6632f7df6487a1f181f5f46a052d3c917c3d11"},
+    {file = "cloudpickle-2.0.0.tar.gz", hash = "sha256:5cd02f3b417a783ba84a4ec3e290ff7929009fe51f6405423cfccfadd43ba4a4"},
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
@@ -2558,6 +2591,10 @@ pillow = [
 plotly = [
     {file = "plotly-4.14.3-py2.py3-none-any.whl", hash = "sha256:d68fc15fcb49f88db27ab3e0c87110943e65fee02a47f33a8590f541b3042461"},
     {file = "plotly-4.14.3.tar.gz", hash = "sha256:7d8aaeed392e82fb8e0e48899f2d3d957b12327f9d38cdd5802bc574a8a39d91"},
+]
+probflow = [
+    {file = "probflow-2.4.1-py3-none-any.whl", hash = "sha256:dfed69848a0b19d925d5d27b6fa20eb0de1fd5c4c49bf2fcb9eb0a63750153d4"},
+    {file = "probflow-2.4.1.tar.gz", hash = "sha256:0f226cfddda55e7f19686fcae444f26d01dff4601356a295e5d1c4e5b59a944a"},
 ]
 prometheus-client = [
     {file = "prometheus_client-0.12.0-py2.py3-none-any.whl", hash = "sha256:317453ebabff0a1b02df7f708efbab21e3489e7072b61cb6957230dd004a0af0"},
